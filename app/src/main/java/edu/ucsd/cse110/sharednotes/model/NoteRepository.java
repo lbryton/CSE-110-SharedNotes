@@ -2,12 +2,16 @@ package edu.ucsd.cse110.sharednotes.model;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
+import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class NoteRepository {
     private final NoteDao dao;
@@ -15,9 +19,14 @@ public class NoteRepository {
 
     private NoteAPI remoteNode;
 
+    private MediatorLiveData<Note> noteData;
+    private MutableLiveData<Note> realNoteData;
+
     public NoteRepository(NoteDao dao) {
         this.dao = dao;
         this.remoteNode = new NoteAPI();
+
+        realNoteData = new MutableLiveData<>();
     }
 
     // Synced Methods
@@ -101,16 +110,31 @@ public class NoteRepository {
             poller.cancel(true);
         }
         // Set up a background thread that will poll the server every 3 seconds.
+        var executor = Executors.newSingleThreadScheduledExecutor();
+        poller = executor.scheduleAtFixedRate(() -> {
+            try {
+                realNoteData.postValue(remoteNode.getNoteAsync(title).get());
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }, 0, 3000, TimeUnit.MILLISECONDS);
 
+        noteData = new MediatorLiveData<>();
+        noteData.addSource(realNoteData, noteData::postValue);
+
+        return this.noteData;
         // You may (but don't have to) want to cache the LiveData's for each title, so that
         // you don't create a new polling thread every time you call getRemote with the same title.
         // You don't need to worry about killing background threads.
 
-        throw new UnsupportedOperationException("Not implemented yet");
+        //throw new UnsupportedOperationException("Not implemented yet");
     }
 
     public void upsertRemote(Note note) {
         // TODO: Implement upsertRemote!
-        throw new UnsupportedOperationException("Not implemented yet");
+        remoteNode.putNoteAsync(note);
+        //throw new UnsupportedOperationException("Not implemented yet");
     }
 }

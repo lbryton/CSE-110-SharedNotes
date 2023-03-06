@@ -64,7 +64,7 @@ public class NoteAPI {
         var body = RequestBody.create(note.toJSON(), JSON);
         var request = new Request.Builder()
                 .url("https://sharednotes.goto.ucsd.edu/notes/" + encodedTitle)
-                .post(body)
+                .method("PUT", body)
                 .build();
         try (var response = client.newCall(request).execute()) {
             assert response.body().string() != null;
@@ -109,6 +109,14 @@ public class NoteAPI {
 
         // We can use future.get(1, SECONDS) to wait for the result.
         return future;
+    }
+
+    @AnyThread
+    public void putNoteAsync(Note note) {
+        var executor = Executors.newSingleThreadExecutor();
+        executor.submit(() -> putNote(note));
+
+        // We can use future.get(1, SECONDS) to wait for the result.
     }
 
     @AnyThread
