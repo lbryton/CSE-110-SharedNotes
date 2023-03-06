@@ -11,8 +11,10 @@ import com.google.gson.Gson;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 
 public class NoteAPI {
     // TODO: Implement the API using OkHttp!
@@ -25,6 +27,8 @@ public class NoteAPI {
 
     private OkHttpClient client;
 
+    public static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+
     public NoteAPI() {
         this.client = new OkHttpClient();
     }
@@ -34,6 +38,39 @@ public class NoteAPI {
             instance = new NoteAPI();
         }
         return instance;
+    }
+
+    public Note getNote(String title) {
+        String encodedTitle = title.replace(" ", "%20");
+        var request = new Request.Builder()
+                .url("https://sharednotes.goto.ucsd.edu/notes/" + encodedTitle)
+                .method("GET", null)
+                .build();
+        try (var response = client.newCall(request).execute()) {
+            assert response.body() != null;
+            var body = response.body().string();
+            Log.i("ECHO", body);
+            return Note.fromJSON(body);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public void putNote(Note note) {
+        String title = note.title;
+        String encodedTitle = title.replace(" ", "%20");
+
+        var body = RequestBody.create(note.toJSON(), JSON);
+        var request = new Request.Builder()
+                .url("https://sharednotes.goto.ucsd.edu/notes/" + encodedTitle)
+                .post(body)
+                .build();
+        try (var response = client.newCall(request).execute()) {
+            assert response.body().string() != null;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -63,6 +100,15 @@ public class NoteAPI {
             e.printStackTrace();
             return null;
         }
+    }
+
+    @AnyThread
+    public Future<Note> getNoteAsync(String title) {
+        var executor = Executors.newSingleThreadExecutor();
+        var future = executor.submit(() -> getNote(title));
+
+        // We can use future.get(1, SECONDS) to wait for the result.
+        return future;
     }
 
     @AnyThread

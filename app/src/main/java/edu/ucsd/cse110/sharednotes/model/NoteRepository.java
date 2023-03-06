@@ -13,8 +13,11 @@ public class NoteRepository {
     private final NoteDao dao;
     private ScheduledFuture<?> poller; // what could this be for... hmm?
 
+    private NoteAPI remoteNode;
+
     public NoteRepository(NoteDao dao) {
         this.dao = dao;
+        this.remoteNode = new NoteAPI();
     }
 
     // Synced Methods
@@ -97,7 +100,6 @@ public class NoteRepository {
         if (this.poller != null && !this.poller.isCancelled()) {
             poller.cancel(true);
         }
-
         // Set up a background thread that will poll the server every 3 seconds.
 
         // You may (but don't have to) want to cache the LiveData's for each title, so that
